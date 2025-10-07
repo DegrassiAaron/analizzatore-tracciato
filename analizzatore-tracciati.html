@@ -506,6 +506,7 @@
                 </div>
 
                 <div class="toolbar">
+                    <button class="btn btn-small" onclick="toggleFilters()">🔍 Filtri</button>
                     <button class="btn btn-small" onclick="selectAll()">Seleziona Tutti</button>
                     <button class="btn btn-small" onclick="deselectAll()">Deseleziona Tutti</button>
                     <button class="btn btn-small btn-success" id="downloadSelectedSingleBtn" onclick="downloadSelectedSingle()" disabled>
@@ -515,6 +516,58 @@
                         📥 Scarica Selezionati (ZIP)
                     </button>
                     <div class="selection-info" id="selectionInfo">Nessun tracciato selezionato</div>
+                </div>
+
+                <div id="filterPanel" style="display:none;background:#2d2d30;padding:15px;border-radius:6px;margin-bottom:15px;">
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:15px;">
+                        <div>
+                            <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Codice Compagnia</label>
+                            <input type="text" id="filterCompagnia" placeholder="es: 0001" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Numero Contratto</label>
+                            <input type="text" id="filterContratto" placeholder="es: 12345678901234" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Numero Documento</label>
+                            <input type="text" id="filterDocumento" placeholder="es: 12345678901234" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Tipo Documento</label>
+                            <input type="text" id="filterTipoDoc" placeholder="es: 01" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Codice Prodotto</label>
+                            <input type="text" id="filterProdotto" placeholder="es: ABC123" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Tipo Filtro Data</label>
+                            <select id="filterDataTipo" onchange="toggleDateFields()" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                                <option value="">Nessun filtro data</option>
+                                <option value="esatta">Data esatta</option>
+                                <option value="prima">Prima di</option>
+                                <option value="dopo">Dopo</option>
+                                <option value="intervallo">Intervallo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="dateFieldsContainer" style="display:none;margin-bottom:15px;">
+                        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;">
+                            <div id="dataField1Container">
+                                <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;" id="dataField1Label">Data</label>
+                                <input type="text" id="filterData1" placeholder="aaaa-mm-gg o gg/mm/aaaa" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                            </div>
+                            <div id="dataField2Container" style="display:none;">
+                                <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Data Fine</label>
+                                <input type="text" id="filterData2" placeholder="aaaa-mm-gg o gg/mm/aaaa" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <button class="btn btn-small" onclick="applyFilters()">Applica Filtri</button>
+                        <button class="btn btn-small btn-danger" onclick="clearFilters()">Pulisci Filtri</button>
+                        <span id="filterResultCount" style="color:#858585;font-size:12px;margin-left:10px;line-height:26px;"></span>
+                    </div>
                 </div>
 
                 <div style="overflow-x: auto;">
@@ -527,6 +580,8 @@
                                 <th>Codice Compagnia</th>
                                 <th>Numero Contratto</th>
                                 <th>Progressivo Contratto</th>
+                                <th>Numero Documento</th>
+                                <th>Tipo Documento</th>
                                 <th>Blocchi Trovati</th>
                                 <th>Righe Totali</th>
                                 <th>Azioni</th>
@@ -1019,9 +1074,24 @@
             ]
         };
 
-        const MAX_FILES = 20;
+        // ===== CONFIGURAZIONE GESTIONE MEMORIA =====
+        // Queste costanti possono essere modificate per adattare il comportamento dell'applicazione
+
+        const MAX_FILES = 20; // Numero massimo di file caricabili contemporaneamente
+
+        const MAX_LINES_PER_DOC = 10000;
+        // Limite di righe raw salvate per singolo documento
+        // Per file da 8GB con molti documenti, questo limite previene il crash del browser
+        // I dati strutturati dei blocchi vengono sempre salvati completamente
+        // Valori consigliati: 5000-20000 (dipende dalla RAM disponibile)
+
+        const SAVE_RAW_LINES = true;
+        // Se false, non salva le righe raw ma solo i dati strutturati dei blocchi
+        // Questo riduce drasticamente l'uso di memoria ma impedisce il download delle righe originali
+        // Impostare a false solo per file estremamente grandi (>20GB totali)
         let selectedFiles = [];
         let documentsData = new Map();
+        let filteredDocuments = new Map(); // Documenti dopo applicazione filtri
         const sourceFiles = new Map();
         let selectedDocs = new Set();
 
@@ -1074,35 +1144,46 @@
         }
 
         function extractBlockId(line) {
-            // Il blocco inizia alla posizione 200 ed è lungo 12 caratteri
+            // Il blocco inizia alla posizione 109 ed è lungo 12 caratteri
             // Formato: [5 caratteri prefisso][3 caratteri ID blocco][4 cifre]
-            // Esempio: WGRVBAGE0001 (posizioni 200-211)
-            // ID blocco: posizioni 205-207 (AGE)
-            if (line.length < 212) return null;
-            
-            const blockString = line.substring(200, 212);
-            // Estrai i 3 caratteri dell'ID blocco (posizione 5-7 del blockString)
+            // Esempio: WGRVBCNT0000 (posizioni 109-121)
+            // ID blocco: posizioni 114-117 (CNT)
+            if (line.length < 121) return null;
+
+            const blockString = line.substring(109, 121);
+            // Estrai i 3 caratteri dell'ID blocco (posizione 5-8 del blockString)
             const blockId = blockString.substring(5, 8);
-            
+
             // Verifica che l'ID blocco esista nelle definizioni
             if (BLOCK_DEFINITIONS[blockId]) {
                 return blockId;
             }
-            
+
             return null;
         }
 
         function extractHeaderData(line) {
-            if (line.length < 200) return null;
-            
+            // Header: posizioni 0-109
+            // (identificativo:10)(data1:10)(data2:10)(7 caratteri)(compagnia:3)(contratto:13)(progressivo:7)
+            // (8 caratteri)(data riferimento:10)(tipo documento:3)(2 caratteri)(codice prodotto:3)
+            // (numero documento:13)(10 caratteri)
+            if (line.length < 109) return null;
+
             return {
-                codiceIniziale: line.substring(0, 10).trim(),
-                data1: line.substring(10, 20),
-                data2: line.substring(20, 30),
-                campo7: line.substring(30, 37),
-                codCompagnia: line.substring(37, 40),
-                numContratto: line.substring(40, 53),
-                prgContratto: line.substring(53, 61)
+                identificativo: line.substring(0, 10).trim(),
+                data1: line.substring(10, 20).trim(),
+                data2: line.substring(20, 30).trim(),
+                campo7: line.substring(30, 37).trim(),
+                codCompagnia: line.substring(37, 40).trim(),
+                numContratto: line.substring(40, 53).trim(),
+                prgContratto: line.substring(53, 60).trim(), // 7 cifre
+                campo8: line.substring(60, 68).trim(),
+                datRiferimento: line.substring(68, 78).trim(), // Data riferimento
+                tipDocumento: line.substring(78, 81).trim(), // Tipo documento dall'header
+                campo2: line.substring(81, 83).trim(),
+                codProdotto: line.substring(83, 86).trim(), // Codice prodotto dall'header
+                numDocumento: line.substring(86, 99).trim(), // Numero documento dall'header
+                campo10: line.substring(99, 109).trim()
             };
         }
 
@@ -1111,24 +1192,14 @@
             if (!definition) return null;
 
             // I dati del blocco iniziano dopo l'identificatore del blocco
-            // Posizione 200: inizio identificatore blocco (12 caratteri)
-            // Posizione 212: inizio dati del blocco
-            if (line.length < 212) return null;
+            // Posizione 109: inizio identificatore blocco (12 caratteri)
+            // Posizione 121: inizio dati del blocco
+            if (line.length < 121) return null;
 
-            const dataStart = 212;
+            const dataStart = 121;
             const result = {};
 
             definition.forEach(field => {
-                const startPos = dataStart + field.pos;
-                const endPos = startPos + field.len;
-                if (line.length >= endPos) {
-                    const value = line.substring(startPos, endPos).trim();
-                    result[field.name] = value;
-                }
-            });
-
-            return result;
-        }
                 const startPos = dataStart + field.pos;
                 const endPos = startPos + field.len;
                 if (line.length >= endPos) {
@@ -1206,6 +1277,112 @@
             updateFileList();
         }
 
+        async function processFileInChunks(file, onProgress) {
+            const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+            const fileSize = file.size;
+            let offset = 0;
+            let leftover = '';
+            const docMap = new Map();
+            let blocksFound = new Set();
+            let linesParsed = 0;
+            let blocksNotFound = 0;
+            let totalLinesInFile = 0;
+
+            while (offset < fileSize) {
+                const chunk = file.slice(offset, offset + CHUNK_SIZE);
+                const text = await chunk.text();
+
+                // Combina con il leftover della chunk precedente
+                const fullText = leftover + text;
+                const lines = fullText.split('\n');
+
+                // L'ultima riga potrebbe essere incompleta, salvala per la prossima chunk
+                if (offset + CHUNK_SIZE < fileSize) {
+                    leftover = lines.pop() || '';
+                } else {
+                    leftover = '';
+                }
+
+                // Processa le righe complete
+                lines.forEach((line, lineNum) => {
+                    if (line.trim().length === 0) return;
+                    totalLinesInFile++;
+                    linesParsed++;
+
+                    const header = extractHeaderData(line);
+                    if (!header) {
+                        if (linesParsed <= 3) logToConsole(`⚠️ Riga ${lineNum + 1}: Header non valido`, 'warning');
+                        return;
+                    }
+
+                    const blockId = extractBlockId(line);
+
+                    // Log dettagliato per le prime 3 righe
+                    if (linesParsed <= 3) {
+                        const blockString = line.length >= 121 ? line.substring(109, 121) : 'TROPPO CORTA';
+                        logToConsole(`🔍 Riga ${lineNum + 1}: BlockString="${blockString}", BlockID="${blockId || 'NULL'}", Length=${line.length}`, 'info');
+                    }
+
+                    if (blockId && BLOCK_DEFINITIONS[blockId]) {
+                        blocksFound.add(blockId);
+                    } else {
+                        blocksNotFound++;
+                        if (linesParsed <= 3 && line.length >= 121) {
+                            logToConsole(`❌ Riga ${lineNum + 1}: BlockID non riconosciuto in BLOCK_DEFINITIONS`, 'error');
+                        }
+                    }
+
+                    const key = `${header.codCompagnia}-${header.numContratto}-${header.prgContratto}`;
+
+                    if (!docMap.has(key)) {
+                        docMap.set(key, {
+                            header: header,
+                            blocks: {},
+                            lines: [],
+                            sourceFile: file.name,
+                            totalLinesProcessed: 0,
+                            linesTruncated: false,
+                            // Campi per filtri (estratti dall'header)
+                            numDocumento: header.numDocumento,
+                            tipDocumento: header.tipDocumento,
+                            codProdotto: header.codProdotto
+                        });
+                    }
+
+                    const doc = docMap.get(key);
+                    doc.totalLinesProcessed++;
+
+                    // Salva le righe solo se abilitato e non si è raggiunto il limite
+                    if (SAVE_RAW_LINES && doc.lines.length < MAX_LINES_PER_DOC) {
+                        doc.lines.push(line);
+                    } else if (SAVE_RAW_LINES && !doc.linesTruncated) {
+                        doc.linesTruncated = true;
+                        logToConsole(`⚠️ Documento ${key}: limite di ${MAX_LINES_PER_DOC} righe raggiunto, righe successive non salvate in memoria`, 'warning');
+                    }
+
+                    if (blockId && BLOCK_DEFINITIONS[blockId]) {
+                        if (!doc.blocks[blockId]) {
+                            doc.blocks[blockId] = [];
+                        }
+                        const blockData = parseBlockData(line, blockId);
+                        if (blockData) {
+                            doc.blocks[blockId].push(blockData);
+                        }
+                    }
+                });
+
+                offset += CHUNK_SIZE;
+                onProgress(Math.min(offset / fileSize, 1));
+            }
+
+            return {
+                docMap,
+                blocksFound,
+                blocksNotFound,
+                totalLinesInFile
+            };
+        }
+
         async function processFiles() {
             processBtn.disabled = true;
             progressContainer.style.display = 'block';
@@ -1220,70 +1397,16 @@
 
             for (let i = 0; i < selectedFiles.length; i++) {
                 const file = selectedFiles[i];
-                updateProgress((i / selectedFiles.length) * 100);
-                logToConsole(`⚙️ Elaborazione: ${file.name}`, 'info');
+                logToConsole(`⚙️ Elaborazione: ${file.name} (${formatSize(file.size)})`, 'info');
 
                 try {
-                    const text = await file.text();
-                    const lines = text.split('\n');
-                    
-                    const docMap = new Map();
-                    let blocksFound = new Set();
-                    let linesParsed = 0;
-                    let blocksNotFound = 0;
-
-                    lines.forEach((line, lineNum) => {
-                        if (line.trim().length === 0) return;
-                        totalLines++;
-                        linesParsed++;
-
-                        const header = extractHeaderData(line);
-                        if (!header) {
-                            if (linesParsed <= 3) logToConsole(`⚠️ Riga ${lineNum + 1}: Header non valido`, 'warning');
-                            return;
-                        }
-
-                        const blockId = extractBlockId(line);
-                        
-                        // Log dettagliato per le prime 3 righe
-                        if (linesParsed <= 3) {
-                            const blockString = line.length >= 212 ? line.substring(200, 212) : 'TROPPO CORTA';
-                            logToConsole(`🔍 Riga ${lineNum + 1}: BlockString="${blockString}", BlockID="${blockId || 'NULL'}", Length=${line.length}`, 'info');
-                        }
-                        
-                        if (blockId && BLOCK_DEFINITIONS[blockId]) {
-                            blocksFound.add(blockId);
-                        } else {
-                            blocksNotFound++;
-                            if (linesParsed <= 3 && line.length >= 212) {
-                                logToConsole(`❌ Riga ${lineNum + 1}: BlockID non riconosciuto in BLOCK_DEFINITIONS`, 'error');
-                            }
-                        }
-                        
-                        const key = `${header.codCompagnia}-${header.numContratto}-${header.prgContratto}`;
-
-                        if (!docMap.has(key)) {
-                            docMap.set(key, {
-                                header: header,
-                                blocks: {},
-                                lines: [],
-                                sourceFile: file.name
-                            });
-                        }
-
-                        const doc = docMap.get(key);
-                        doc.lines.push(line);
-
-                        if (blockId && BLOCK_DEFINITIONS[blockId]) {
-                            if (!doc.blocks[blockId]) {
-                                doc.blocks[blockId] = [];
-                            }
-                            const blockData = parseBlockData(line, blockId);
-                            if (blockData) {
-                                doc.blocks[blockId].push(blockData);
-                            }
-                        }
+                    const result = await processFileInChunks(file, (chunkProgress) => {
+                        const fileProgress = (i + chunkProgress) / selectedFiles.length * 100;
+                        updateProgress(fileProgress);
                     });
+
+                    const { docMap, blocksFound, blocksNotFound, totalLinesInFile } = result;
+                    totalLines += totalLinesInFile;
 
                     if (blocksFound.size > 0) {
                         logToConsole(`✓ Blocchi trovati in ${file.name}: ${Array.from(blocksFound).join(', ')}`, 'success');
@@ -1297,7 +1420,7 @@
                     });
 
                     sourceFiles.set(file.name, file);
-                    logToConsole(`✓ ${file.name}: ${docMap.size} documenti trovati`, 'success');
+                    logToConsole(`✓ ${file.name}: ${docMap.size} documenti, ${totalLinesInFile} righe elaborate`, 'success');
 
                 } catch (error) {
                     logToConsole(`✗ Errore elaborando ${file.name}: ${error.message}`, 'error');
@@ -1337,13 +1460,18 @@
             docCount.textContent = `${totalDocs} documenti`;
         }
 
-        function renderDocumentsTable() {
+        function renderDocumentsTable(dataSource = null) {
             tableBody.innerHTML = '';
-            
-            documentsData.forEach((doc, key) => {
+            const dataToRender = dataSource || documentsData;
+
+            dataToRender.forEach((doc, key) => {
                 const row = document.createElement('tr');
                 const blockTypes = Object.keys(doc.blocks);
-                
+
+                const linesDisplay = doc.linesTruncated
+                    ? `${doc.totalLinesProcessed} <span style="color:#4ec9b0;" title="Ottimizzato: solo ${doc.lines.length} righe in memoria. Tutte le righe disponibili per analisi e download.">💾</span>`
+                    : doc.totalLinesProcessed;
+
                 row.innerHTML = `
                     <td>
                         <input type="checkbox" class="checkbox doc-checkbox" data-key="${key}" onchange="updateSelection()">
@@ -1351,8 +1479,10 @@
                     <td>${doc.header.codCompagnia}</td>
                     <td>${doc.header.numContratto}</td>
                     <td>${doc.header.prgContratto}</td>
+                    <td>${doc.numDocumento || '-'}</td>
+                    <td>${doc.tipDocumento || '-'}</td>
                     <td>${blockTypes.join(', ') || 'Nessuno'}</td>
-                    <td>${doc.lines.length}</td>
+                    <td>${linesDisplay}</td>
                     <td>
                         <button class="btn btn-small" onclick="openAnalysis('${key}')">
                             📊 Analisi
@@ -1422,6 +1552,21 @@
         window.downloadSelectedSingle = async function() {
             if (selectedDocs.size === 0) return;
 
+            // Verifica se ci sono documenti con righe troncate
+            const truncatedDocs = Array.from(selectedDocs).filter(key => {
+                const doc = documentsData.get(key);
+                return doc && doc.linesTruncated;
+            });
+
+            if (truncatedDocs.length > 0) {
+                const confirm = window.confirm(
+                    `ℹ️ ${truncatedDocs.length} dei ${selectedDocs.size} documenti selezionati hanno righe troncate in memoria.\n\n` +
+                    `Le righe complete verranno ricaricate dal file sorgente per il download.\n\n` +
+                    `Vuoi continuare?`
+                );
+                if (!confirm) return;
+            }
+
             const count = selectedDocs.size;
             logToConsole(`📥 Inizio download di ${count} tracciati singoli...`, 'info');
 
@@ -1429,7 +1574,9 @@
             for (const key of selectedDocs) {
                 const doc = documentsData.get(key);
                 if (doc) {
-                    const content = doc.lines.join('\n');
+                    // Ricarica righe complete se necessario
+                    const completeLines = await loadCompleteDocumentLines(doc, key);
+                    const content = completeLines.join('\n');
                     const blob = new Blob([content], { type: 'text/plain' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -1438,7 +1585,7 @@
                     a.click();
                     URL.revokeObjectURL(url);
                     downloaded++;
-                    logToConsole(`✓ Download completato: ${a.download}`, 'success');
+                    logToConsole(`✓ Download completato: ${a.download} (${completeLines.length} righe)`, 'success');
                     await new Promise(resolve => setTimeout(resolve, 100));
                 }
             }
@@ -1448,6 +1595,21 @@
 
         window.downloadSelected = async function() {
             if (selectedDocs.size === 0) return;
+
+            // Verifica se ci sono documenti con righe troncate
+            const truncatedDocs = Array.from(selectedDocs).filter(key => {
+                const doc = documentsData.get(key);
+                return doc && doc.linesTruncated;
+            });
+
+            if (truncatedDocs.length > 0) {
+                const confirm = window.confirm(
+                    `ℹ️ ${truncatedDocs.length} dei ${selectedDocs.size} documenti selezionati hanno righe troncate in memoria.\n\n` +
+                    `Le righe complete verranno ricaricate dal file sorgente per il download.\n\n` +
+                    `Vuoi continuare?`
+                );
+                if (!confirm) return;
+            }
 
             const count = selectedDocs.size;
             logToConsole(`📥 Inizio download di ${count} tracciati in formato ZIP...`, 'info');
@@ -1459,11 +1621,13 @@
                 for (const key of selectedDocs) {
                     const doc = documentsData.get(key);
                     if (doc) {
-                        const content = doc.lines.join('\n');
+                        // Ricarica righe complete se necessario
+                        const completeLines = await loadCompleteDocumentLines(doc, key);
+                        const content = completeLines.join('\n');
                         const filename = `tracciato_${doc.header.numContratto}_${doc.header.prgContratto}.txt`;
                         zip.file(filename, content);
                         processed++;
-                        logToConsole(`⚙️ Aggiunto al zip: ${filename} (${processed}/${count})`, 'info');
+                        logToConsole(`⚙️ Aggiunto al zip: ${filename} (${completeLines.length} righe) [${processed}/${count}]`, 'info');
                     }
                 }
 
@@ -1482,28 +1646,108 @@
             }
         }
 
-        window.openAnalysis = function(docKey) {
+        async function loadCompleteDocumentLines(doc, docKey) {
+            // Se il documento non è troncato, restituisci le righe esistenti
+            if (!doc.linesTruncated) {
+                return doc.lines;
+            }
+
+            // Ricarica le righe complete dal file sorgente
+            logToConsole(`📥 Caricamento righe complete per documento ${docKey}...`, 'info');
+
+            const file = sourceFiles.get(doc.sourceFile);
+            if (!file) {
+                logToConsole(`✗ File sorgente non trovato: ${doc.sourceFile}`, 'error');
+                return doc.lines;
+            }
+
+            const allLines = [];
+            const CHUNK_SIZE = 10 * 1024 * 1024;
+            const fileSize = file.size;
+            let offset = 0;
+            let leftover = '';
+
+            while (offset < fileSize) {
+                const chunk = file.slice(offset, offset + CHUNK_SIZE);
+                const text = await chunk.text();
+                const fullText = leftover + text;
+                const lines = fullText.split('\n');
+
+                if (offset + CHUNK_SIZE < fileSize) {
+                    leftover = lines.pop() || '';
+                } else {
+                    leftover = '';
+                }
+
+                lines.forEach(line => {
+                    if (line.trim().length === 0) return;
+                    const header = extractHeaderData(line);
+                    if (!header) return;
+
+                    const key = `${header.codCompagnia}-${header.numContratto}-${header.prgContratto}`;
+                    if (key === docKey) {
+                        allLines.push(line);
+                    }
+                });
+
+                offset += CHUNK_SIZE;
+            }
+
+            logToConsole(`✓ Caricate ${allLines.length} righe complete`, 'success');
+            return allLines;
+        }
+
+        window.openAnalysis = async function(docKey) {
             const doc = documentsData.get(docKey);
             if (!doc) return;
 
             modalTitle.textContent = `Analisi Tracciato - ${doc.header.numContratto}`;
-            
-            tabs.innerHTML = '';
-            tabsContent.innerHTML = '';
 
-            const tabList = ['Dati Tracciato', ...Object.keys(doc.blocks)];
-            
-            tabList.forEach((tabName, index) => {
-                const tab = document.createElement('button');
-                tab.className = 'tab' + (index === 0 ? ' active' : '');
-                tab.textContent = tabName;
-                tab.onclick = () => switchTab(tabName, doc);
-                tabs.appendChild(tab);
-            });
+            // Mostra modal con loading se il documento è troncato
+            if (doc.linesTruncated) {
+                tabs.innerHTML = '';
+                tabsContent.innerHTML = '<div style="text-align:center;padding:60px;color:#4ec9b0;">⏳ Caricamento righe complete...</div>';
+                analysisModal.style.display = 'block';
 
-            createDatiTracciatoTab(doc);
-            
-            analysisModal.style.display = 'block';
+                // Carica righe complete in background
+                const completeLines = await loadCompleteDocumentLines(doc, docKey);
+
+                // Crea una copia temporanea del documento con tutte le righe
+                const completeDoc = { ...doc, lines: completeLines, linesTruncated: false, totalLinesProcessed: completeLines.length };
+
+                // Aggiorna il modal con i dati completi
+                tabs.innerHTML = '';
+                tabsContent.innerHTML = '';
+
+                const tabList = ['Dati Tracciato', ...Object.keys(completeDoc.blocks)];
+
+                tabList.forEach((tabName, index) => {
+                    const tab = document.createElement('button');
+                    tab.className = 'tab' + (index === 0 ? ' active' : '');
+                    tab.textContent = tabName;
+                    tab.onclick = () => switchTab(tabName, completeDoc);
+                    tabs.appendChild(tab);
+                });
+
+                createDatiTracciatoTab(completeDoc);
+            } else {
+                tabs.innerHTML = '';
+                tabsContent.innerHTML = '';
+
+                const tabList = ['Dati Tracciato', ...Object.keys(doc.blocks)];
+
+                tabList.forEach((tabName, index) => {
+                    const tab = document.createElement('button');
+                    tab.className = 'tab' + (index === 0 ? ' active' : '');
+                    tab.textContent = tabName;
+                    tab.onclick = () => switchTab(tabName, doc);
+                    tabs.appendChild(tab);
+                });
+
+                createDatiTracciatoTab(doc);
+
+                analysisModal.style.display = 'block';
+            }
         }
 
         function switchTab(tabName, doc) {
@@ -1522,15 +1766,33 @@
         function createDatiTracciatoTab(doc) {
             const content = document.createElement('div');
             content.className = 'tab-content active';
+
+            const truncationWarning = doc.linesTruncated ? `
+                <div class="warning-banner show" style="margin-bottom:15px;">
+                    <div class="warning-icon">ℹ️</div>
+                    <div class="warning-text">
+                        <div class="warning-title">Ottimizzazione memoria</div>
+                        <div class="warning-desc">Questo documento ha ${doc.totalLinesProcessed} righe ma solo ${doc.lines.length} sono salvate in memoria (limite: ${MAX_LINES_PER_DOC}). I dati dei blocchi sono completi e le righe complete sono disponibili per analisi e download.</div>
+                    </div>
+                </div>
+            ` : '';
+
             content.innerHTML = `
                 <h3 style="color:#4ec9b0;margin-bottom:15px;">Informazioni Generali</h3>
+                ${truncationWarning}
                 <table>
+                    <tr><td style="font-weight:600;">Identificativo</td><td>${doc.header.identificativo}</td></tr>
                     <tr><td style="font-weight:600;">Codice Compagnia</td><td>${doc.header.codCompagnia}</td></tr>
                     <tr><td style="font-weight:600;">Numero Contratto</td><td>${doc.header.numContratto}</td></tr>
                     <tr><td style="font-weight:600;">Progressivo Contratto</td><td>${doc.header.prgContratto}</td></tr>
+                    <tr><td style="font-weight:600;">Numero Documento</td><td>${doc.header.numDocumento}</td></tr>
+                    <tr><td style="font-weight:600;">Tipo Documento</td><td>${doc.header.tipDocumento}</td></tr>
+                    <tr><td style="font-weight:600;">Codice Prodotto</td><td>${doc.header.codProdotto}</td></tr>
                     <tr><td style="font-weight:600;">Data 1</td><td>${doc.header.data1}</td></tr>
                     <tr><td style="font-weight:600;">Data 2</td><td>${doc.header.data2}</td></tr>
-                    <tr><td style="font-weight:600;">Righe Totali</td><td>${doc.lines.length}</td></tr>
+                    <tr><td style="font-weight:600;">Data Riferimento</td><td>${doc.header.datRiferimento}</td></tr>
+                    <tr><td style="font-weight:600;">Righe Processate</td><td>${doc.totalLinesProcessed}</td></tr>
+                    <tr><td style="font-weight:600;">Righe Salvate</td><td>${doc.lines.length}${doc.linesTruncated ? ' <span style="color:#dcdcaa;">⚠️ Troncate</span>' : ''}</td></tr>
                     <tr><td style="font-weight:600;">Blocchi Trovati</td><td>${Object.keys(doc.blocks).join(', ')}</td></tr>
                     <tr><td style="font-weight:600;">File Sorgente</td><td>${doc.sourceFile}</td></tr>
                 </table>
@@ -1733,6 +1995,166 @@
 
             renderTable();
             tabsContent.appendChild(content);
+        }
+
+        // ===== FUNZIONI DI FILTRO =====
+
+        window.toggleFilters = function() {
+            const panel = document.getElementById('filterPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        window.toggleDateFields = function() {
+            const tipo = document.getElementById('filterDataTipo').value;
+            const container = document.getElementById('dateFieldsContainer');
+            const field1Container = document.getElementById('dataField1Container');
+            const field2Container = document.getElementById('dataField2Container');
+            const field1Label = document.getElementById('dataField1Label');
+
+            if (tipo === '') {
+                container.style.display = 'none';
+            } else {
+                container.style.display = 'block';
+                field1Container.style.display = 'block';
+
+                if (tipo === 'intervallo') {
+                    field2Container.style.display = 'block';
+                    field1Label.textContent = 'Data Inizio';
+                } else {
+                    field2Container.style.display = 'none';
+                    if (tipo === 'esatta') field1Label.textContent = 'Data';
+                    else if (tipo === 'prima') field1Label.textContent = 'Data';
+                    else if (tipo === 'dopo') field1Label.textContent = 'Data';
+                }
+            }
+        }
+
+        function parseDate(dateStr) {
+            // Converte gg/mm/aaaa o aaaa-mm-gg in oggetto Date
+            if (!dateStr) return null;
+
+            let parts = dateStr.split('-');
+            if (parts.length === 3) {
+                // Formato: aaaa-mm-gg
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const day = parseInt(parts[2], 10);
+                if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                    return new Date(year, month, day);
+                }
+            }
+
+            parts = dateStr.split('/');
+            if (parts.length === 3) {
+                // Formato: gg/mm/aaaa
+                const day = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const year = parseInt(parts[2], 10);
+                if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                    return new Date(year, month, day);
+                }
+            }
+
+            return null;
+        }
+
+        function formatDateFromHeader(headerDate) {
+            // Converte data header (formato: aaaa-mm-gg) in Date
+            if (!headerDate || headerDate.length < 10) return null;
+
+            // Rimuovi spazi e trattini
+            const parts = headerDate.trim().split('-');
+            if (parts.length !== 3) return null;
+
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const day = parseInt(parts[2], 10);
+
+            if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+
+            return new Date(year, month, day);
+        }
+
+        function matchesDateFilter(doc) {
+            const tipo = document.getElementById('filterDataTipo').value;
+            if (!tipo) return true;
+
+            const data1Str = document.getElementById('filterData1').value.trim();
+            if (!data1Str) return true;
+
+            const data1 = parseDate(data1Str);
+            if (!data1) return true;
+
+            const docDate = formatDateFromHeader(doc.header.datRiferimento);
+            if (!docDate) return false;
+
+            if (tipo === 'esatta') {
+                return docDate.getTime() === data1.getTime();
+            } else if (tipo === 'prima') {
+                return docDate.getTime() < data1.getTime();
+            } else if (tipo === 'dopo') {
+                return docDate.getTime() > data1.getTime();
+            } else if (tipo === 'intervallo') {
+                const data2Str = document.getElementById('filterData2').value.trim();
+                if (!data2Str) return true;
+                const data2 = parseDate(data2Str);
+                if (!data2) return true;
+                return docDate.getTime() >= data1.getTime() && docDate.getTime() <= data2.getTime();
+            }
+
+            return true;
+        }
+
+        window.applyFilters = function() {
+            const filterCompagnia = document.getElementById('filterCompagnia').value.trim().toUpperCase();
+            const filterContratto = document.getElementById('filterContratto').value.trim();
+            const filterDocumento = document.getElementById('filterDocumento').value.trim();
+            const filterTipoDoc = document.getElementById('filterTipoDoc').value.trim();
+            const filterProdotto = document.getElementById('filterProdotto').value.trim().toUpperCase();
+
+            filteredDocuments.clear();
+
+            documentsData.forEach((doc, key) => {
+                let matches = true;
+
+                if (filterCompagnia && !doc.header.codCompagnia.includes(filterCompagnia)) matches = false;
+                if (filterContratto && !doc.header.numContratto.includes(filterContratto)) matches = false;
+                if (filterDocumento && !doc.numDocumento.includes(filterDocumento)) matches = false;
+                if (filterTipoDoc && !doc.tipDocumento.includes(filterTipoDoc)) matches = false;
+                if (filterProdotto && !doc.codProdotto.includes(filterProdotto)) matches = false;
+                if (!matchesDateFilter(doc)) matches = false;
+
+                if (matches) {
+                    filteredDocuments.set(key, doc);
+                }
+            });
+
+            renderDocumentsTable(filteredDocuments);
+
+            const resultCount = document.getElementById('filterResultCount');
+            resultCount.textContent = `${filteredDocuments.size} di ${documentsData.size} documenti`;
+
+            logToConsole(`✓ Filtri applicati: ${filteredDocuments.size} documenti trovati`, 'success');
+        }
+
+        window.clearFilters = function() {
+            document.getElementById('filterCompagnia').value = '';
+            document.getElementById('filterContratto').value = '';
+            document.getElementById('filterDocumento').value = '';
+            document.getElementById('filterTipoDoc').value = '';
+            document.getElementById('filterProdotto').value = '';
+            document.getElementById('filterDataTipo').value = '';
+            document.getElementById('filterData1').value = '';
+            document.getElementById('filterData2').value = '';
+            toggleDateFields();
+
+            filteredDocuments.clear();
+            renderDocumentsTable();
+
+            const resultCount = document.getElementById('filterResultCount');
+            resultCount.textContent = '';
+
+            logToConsole('✓ Filtri rimossi', 'info');
         }
 
         processBtn.addEventListener('click', processFiles);
