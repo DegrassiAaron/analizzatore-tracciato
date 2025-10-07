@@ -4,7 +4,7 @@
  * Handles file upload, processing, and chunk-based reading for large files
  */
 
-import { MAX_FILES, MAX_LINES_PER_DOC, SAVE_RAW_LINES } from '../config/config.js';
+import { MAX_FILES, MAX_TOTAL_SIZE, MAX_LINES_PER_DOC, SAVE_RAW_LINES } from '../config/config.js';
 import { BLOCK_DEFINITIONS } from '../config/blockDefinitions.js';
 import { extractBlockId, extractHeaderData, parseBlockData } from './parser.js';
 import { selectedFiles, setSelectedFiles, documentsData, sourceFiles, selectedDocs } from './state.js';
@@ -25,6 +25,18 @@ export function handleFiles(files) {
         txtFiles.splice(availableSlots);
     }
 
+    // Check total size
+    const currentTotalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
+    const newFilesSize = txtFiles.reduce((sum, f) => sum + f.size, 0);
+    const totalSize = currentTotalSize + newFilesSize;
+
+    if (totalSize > MAX_TOTAL_SIZE) {
+        const maxSizeGB = (MAX_TOTAL_SIZE / (1024 * 1024 * 1024)).toFixed(1);
+        const totalSizeGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
+        logToConsole(`✗ Dimensione totale eccessiva: ${totalSizeGB}GB. Limite massimo: ${maxSizeGB}GB`, 'error');
+        return;
+    }
+
     const newFiles = [...selectedFiles, ...txtFiles].slice(0, MAX_FILES);
     setSelectedFiles(newFiles);
     logToConsole(`✓ Aggiunti ${txtFiles.length} file. Totale: ${selectedFiles.length}/${MAX_FILES}`, 'info');
@@ -36,6 +48,7 @@ export function handleFiles(files) {
  */
 export function updateFileList() {
     dom.fileList.innerHTML = '';
+
     selectedFiles.forEach((file, index) => {
         const div = document.createElement('div');
         div.style.cssText = 'background:#2d2d30;padding:10px 15px;border-radius:4px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-size:12px;';
@@ -48,6 +61,21 @@ export function updateFileList() {
         `;
         dom.fileList.appendChild(div);
     });
+
+    // Show total size
+    if (selectedFiles.length > 0) {
+        const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
+        const totalSizeGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
+        const maxSizeGB = (MAX_TOTAL_SIZE / (1024 * 1024 * 1024)).toFixed(0);
+        const percentage = (totalSize / MAX_TOTAL_SIZE * 100).toFixed(1);
+
+        const totalDiv = document.createElement('div');
+        const isNearLimit = percentage > 80;
+        totalDiv.style.cssText = `background:${isNearLimit ? '#5a3a1a' : '#2d2d30'};padding:10px 15px;border-radius:4px;margin-top:5px;font-size:11px;color:${isNearLimit ? '#dcdcaa' : '#858585'};text-align:center;`;
+        totalDiv.innerHTML = `Dimensione totale: <strong>${totalSizeGB} GB</strong> / ${maxSizeGB} GB (${percentage}%)`;
+        dom.fileList.appendChild(totalDiv);
+    }
+
     dom.processBtn.disabled = selectedFiles.length === 0;
 }
 

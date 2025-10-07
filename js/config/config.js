@@ -7,6 +7,10 @@
 // Maximum number of files that can be uploaded simultaneously
 export const MAX_FILES = 8;
 
+// Maximum total size of all files combined (in bytes)
+// 20GB = 20 * 1024 * 1024 * 1024 bytes
+export const MAX_TOTAL_SIZE = 20 * 1024 * 1024 * 1024;
+
 // Maximum raw lines saved per document in memory
 // For 8GB files with many documents, this limit prevents browser crashes
 // Structured block data is always saved completely

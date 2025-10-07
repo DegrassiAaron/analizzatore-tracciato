@@ -108,7 +108,7 @@ analizzatore-tracciato/
 
 ### Data Processing Flow
 
-1. **File Upload**: Users can upload up to 8 TXT files via drag-and-drop or file picker (each file max 8GB)
+1. **File Upload**: Users can upload up to 8 TXT files via drag-and-drop or file picker (max 20GB total, each file up to 8GB)
 2. **Parsing**: Each line is parsed to extract:
    - **Header data** (positions 0-109): Contains compagnia, contratto, progressivo, dates, etc.
    - **Block name** (positions 200-230): Block name string (30 chars, left-aligned)
@@ -293,6 +293,7 @@ Three configurable constants in `config/config.js` control memory usage:
 
 ```javascript
 MAX_FILES = 8               // Maximum files to load at once
+MAX_TOTAL_SIZE = 20GB       // Maximum total size of all files combined
 MAX_LINES_PER_DOC = 10000   // Max raw lines saved per document
 SAVE_RAW_LINES = true       // Whether to save raw lines or only parsed data
 ```

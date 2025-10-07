@@ -38,7 +38,7 @@ npx serve
 
 ### Workflow Tipico
 
-1. **Carica File**: Trascina file TXT o clicca per selezionarli (max 8 file, ognuno fino a 8GB)
+1. **Carica File**: Trascina file TXT o clicca per selezionarli (max 8 file, 20GB totali)
 2. **Elabora**: Click su "Elabora File" - l'app parserà i tracciati
 3. **Filtra**: Usa i filtri per codice compagnia, contratto, prodotto, data, tipo documento
 4. **Analizza**: Click su "Analisi" per esplorare i dati nel modal
@@ -104,7 +104,7 @@ Vedi [BLOCK_DEFINITIONS.md](./BLOCK_DEFINITIONS.md) per l'elenco completo con tu
 ## 🎨 Funzionalità
 
 ### Elaborazione File
-- ✅ Caricamento fino a 8 file (ognuno max 8GB)
+- ✅ Caricamento fino a 8 file (max 20GB totali, ogni file fino a 8GB)
 - ✅ Elaborazione chunk-based (10MB) per file grandi
 - ✅ Gestione memoria ottimizzata con limite righe configurabile
 - ✅ Caricamento on-demand per documenti con molte righe
@@ -190,6 +190,7 @@ Ottimizzata per file fino a 8GB:
 **Configurazione** (`js/config/config.js`):
 ```javascript
 MAX_FILES = 8               // Max file caricabili
+MAX_TOTAL_SIZE = 20GB       // Limite dimensione totale
 MAX_LINES_PER_DOC = 10000   // Limite righe salvate in RAM
 SAVE_RAW_LINES = true       // Salva righe raw (disabilita per file enormi)
 ```
