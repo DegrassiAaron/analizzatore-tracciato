@@ -157,7 +157,7 @@ function createBlockAccordion(blockId, blockData, container) {
         sortColumn: null,
         sortDirection: 'asc',
         currentPage: 0,
-        rowsPerPage: 10,
+        rowsPerPage: 25,
         columnOrder: [...fields],
         draggedColumnIndex: null,
         isExpanded: false,
@@ -338,6 +338,17 @@ function createBlockAccordion(blockId, blockData, container) {
             } else {
                 state.hiddenColumns.add(field);
             }
+
+            // Update checkbox state in DOM (for accordion)
+            const menu = document.getElementById(`columnMenu_${blockId}`);
+            if (menu) {
+                const checkbox = Array.from(menu.querySelectorAll('input[type="checkbox"]'))
+                    .find(cb => cb.nextSibling && cb.nextSibling.textContent.trim() === field);
+                if (checkbox) {
+                    checkbox.checked = !state.hiddenColumns.has(field);
+                }
+            }
+
             renderTable();
         },
 
@@ -357,7 +368,17 @@ function createBlockAccordion(blockId, blockData, container) {
             state.sortColumn = null;
             state.sortDirection = 'asc';
             state.currentPage = 0;
+            state.rowsPerPage = 25;
             state.columnFilters = {};
+
+            // Update all checkboxes in column menu to checked
+            const menu = document.getElementById(`columnMenu_${blockId}`);
+            if (menu) {
+                menu.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.checked = true;
+                });
+            }
+
             renderTable();
         },
 

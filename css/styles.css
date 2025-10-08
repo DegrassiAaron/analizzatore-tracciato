@@ -317,7 +317,6 @@ tbody tr.selected {
 }
 
 .block-body {
-    max-height: 400px;
     overflow: auto;
 }
 
