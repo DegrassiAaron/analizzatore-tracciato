@@ -59,7 +59,7 @@ async function loadCompleteDocumentLines(doc, docKey) {
             if (line.trim().length === 0) return;
             const header = extractHeaderData(line);
             if (header) {
-                const lineKey = `${header.codCompagnia}-${header.numContratto}-${header.prgContratto}`;
+                const lineKey = `${header.codCompagnia}-${header.numContratto}-${header.prgContratto}-${header.numDocumento}`;
                 if (lineKey === docKey) {
                     allLines.push(line);
                 }

@@ -163,7 +163,7 @@ export async function processFileInChunks(file, onProgress) {
                 }
             }
 
-            const key = `${header.codCompagnia}-${header.numContratto}-${header.prgContratto}`;
+            const key = `${header.codCompagnia}-${header.numContratto}-${header.prgContratto}-${header.numDocumento}`;
 
             if (!docMap.has(key)) {
                 docMap.set(key, {
