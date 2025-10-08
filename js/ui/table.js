@@ -15,10 +15,12 @@ import { formatTableValue, formatDateForTable } from '../utils/utils.js';
 export function renderDocumentsTable(dataSource = null) {
     dom.tableBody.innerHTML = '';
     const dataToRender = dataSource || documentsData;
+    const visibleKeys = new Set();
 
     dataToRender.forEach((doc, key) => {
         const row = document.createElement('tr');
         const blockTypes = Object.keys(doc.blocks);
+        visibleKeys.add(key);
 
         const linesDisplay = doc.linesTruncated
             ? `${doc.totalLinesProcessed} <span style="color:#4ec9b0;" title="Ottimizzato: solo ${doc.lines.length} righe in memoria. Tutte le righe disponibili per analisi e download.">💾</span>`
@@ -44,7 +46,22 @@ export function renderDocumentsTable(dataSource = null) {
             </td>
         `;
         dom.tableBody.appendChild(row);
+
+        const checkbox = row.querySelector('.doc-checkbox');
+        if (selectedDocs.has(key)) {
+            checkbox.checked = true;
+            row.classList.add('selected');
+        }
     });
+
+    // Remove selections that no longer have visible rows
+    Array.from(selectedDocs).forEach(key => {
+        if (!visibleKeys.has(key)) {
+            selectedDocs.delete(key);
+        }
+    });
+
+    updateSelectionUI();
 }
 
 /**
@@ -86,6 +103,28 @@ export function deselectAll() {
 }
 
 /**
+ * Update selection UI without mutating current selection set
+ */
+function updateSelectionUI() {
+    const count = selectedDocs.size;
+    dom.selectionInfo.textContent = count === 0
+        ? 'Nessun tracciato selezionato'
+        : `${count} tracciato${count > 1 ? 'i' : ''} selezionato${count > 1 ? 'i' : ''}`;
+    dom.downloadSelectedBtn.disabled = count === 0;
+    dom.downloadSelectedSingleBtn.disabled = count === 0;
+
+    if (count > 10) {
+        dom.warningBanner.classList.add('show');
+    } else {
+        dom.warningBanner.classList.remove('show');
+    }
+
+    const checkboxes = Array.from(document.querySelectorAll('.doc-checkbox'));
+    const selectedVisible = checkboxes.filter(cb => selectedDocs.has(cb.dataset.key)).length;
+    dom.selectAllCheckbox.checked = checkboxes.length > 0 && selectedVisible === checkboxes.length;
+}
+
+/**
  * Update selection state and UI
  */
 export function updateSelection() {
@@ -101,20 +140,7 @@ export function updateSelection() {
         }
     });
 
-    const count = selectedDocs.size;
-    dom.selectionInfo.textContent = count === 0
-        ? 'Nessun tracciato selezionato'
-        : `${count} tracciato${count > 1 ? 'i' : ''} selezionato${count > 1 ? 'i' : ''}`;
-    dom.downloadSelectedBtn.disabled = count === 0;
-    dom.downloadSelectedSingleBtn.disabled = count === 0;
-
-    if (count > 10) {
-        dom.warningBanner.classList.add('show');
-    } else {
-        dom.warningBanner.classList.remove('show');
-    }
-
-    dom.selectAllCheckbox.checked = count === checkboxes.length && count > 0;
+    updateSelectionUI();
 }
 
 // Expose functions to window for inline onclick handlers
