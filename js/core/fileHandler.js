@@ -17,12 +17,35 @@ import * as dom from '../ui/dom.js';
  * @param {FileList} files - Files from input or drag-drop
  */
 export function handleFiles(files) {
-    const txtFiles = Array.from(files).filter(f => f.name.endsWith('.txt'));
-    const availableSlots = MAX_FILES - selectedFiles.length;
+    const incomingFiles = Array.from(files);
+    const txtFiles = incomingFiles.filter(f => f.name.toLowerCase().endsWith('.txt'));
+    const ignoredCount = incomingFiles.length - txtFiles.length;
+
+    if (ignoredCount > 0) {
+        logToConsole(`⚠️ Ignorati ${ignoredCount} file non TXT`, 'warning');
+    }
+
+    if (txtFiles.length === 0) {
+        if (incomingFiles.length > 0 && ignoredCount === incomingFiles.length) {
+            logToConsole('✗ Nessun file TXT valido selezionato', 'error');
+        }
+        return;
+    }
+
+    const availableSlots = Math.max(0, MAX_FILES - selectedFiles.length);
+
+    if (availableSlots === 0) {
+        logToConsole(`⚠️ Limite massimo di ${MAX_FILES} file già raggiunto`, 'warning');
+        return;
+    }
 
     if (txtFiles.length > availableSlots) {
         logToConsole(`⚠️ Puoi aggiungere solo ${availableSlots} file. Limite massimo: ${MAX_FILES}`, 'warning');
         txtFiles.splice(availableSlots);
+    }
+
+    if (txtFiles.length === 0) {
+        return; // Niente da aggiungere dopo aver rispettato il limite
     }
 
     // Check total size
@@ -37,9 +60,11 @@ export function handleFiles(files) {
         return;
     }
 
-    const newFiles = [...selectedFiles, ...txtFiles].slice(0, MAX_FILES);
+    const previousCount = selectedFiles.length;
+    const newFiles = [...selectedFiles, ...txtFiles];
     setSelectedFiles(newFiles);
-    logToConsole(`✓ Aggiunti ${txtFiles.length} file. Totale: ${selectedFiles.length}/${MAX_FILES}`, 'info');
+    const addedCount = newFiles.length - previousCount;
+    logToConsole(`✓ Aggiunti ${addedCount} file. Totale: ${newFiles.length}/${MAX_FILES}`, 'info');
     updateFileList();
 }
 
