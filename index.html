@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizzatore Tracciati</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="panel">
+            <div class="panel-header">Caricamento File</div>
+            <div class="panel-content">
+                <div class="upload-area" id="uploadArea">
+                    <div style="font-size: 32px; margin-bottom: 8px;">📁</div>
+                    <div style="font-size: 13px; font-weight: 600;">Clicca o trascina file TXT</div>
+                    <div style="font-size: 10px; color: #858585; margin-top: 5px;">Max 8 file, fino a 20GB totali (ogni file max 8GB)</div>
+                </div>
+                <input type="file" id="fileInput" accept=".txt" multiple>
+
+                <div id="fileList"></div>
+
+                <button class="btn process-btn" id="processBtn" disabled>
+                    Analizza File
+                </button>
+
+                <div class="progress-bar" id="progressContainer" style="display: none;">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+
+                <div id="statsContainer" style="display: none;">
+                    <div class="stats-grid" id="stats"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" id="consolePanel" style="display: none;">
+            <div class="panel-header">
+                Console Log
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
+                        <input type="checkbox" id="detailedLogCheckbox" checked style="cursor:pointer;">
+                        Log dettagliato
+                    </label>
+                    <button class="btn btn-small" onclick="clearConsole()">Pulisci</button>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div class="console" id="console"></div>
+            </div>
+        </div>
+
+        <div class="panel" id="resultsPanel" style="display: none;">
+            <div class="panel-header">
+                Documenti Analizzati
+                <span id="docCount" style="font-size: 11px; color: #858585;"></span>
+            </div>
+            <div class="panel-content">
+                <div id="warningBanner" class="warning-banner">
+                    <div class="warning-icon">⚠️</div>
+                    <div class="warning-text">
+                        <div class="warning-title">Attenzione: Download di massa</div>
+                        <div class="warning-desc">Hai selezionato più di 10 tracciati. Il download potrebbe richiedere tempo e causare rallentamenti del browser.</div>
+                    </div>
+                </div>
+
+                <div id="filterPanel" style="background:#2d2d30;padding:15px;border-radius:6px;margin-bottom:15px;">
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:15px;">
+                        <div>
+                            <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Codice Compagnia</label>
+                            <input type="text" id="filterCompagnia" placeholder="es: 0001" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Numero Contratto</label>
+                            <input type="text" id="filterContratto" placeholder="es: 12345678901234" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Numero Documento</label>
+                            <input type="text" id="filterDocumento" placeholder="es: 12345678901234" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Tipo Documento</label>
+                            <input type="text" id="filterTipoDoc" placeholder="es: 01" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Codice Prodotto</label>
+                            <input type="text" id="filterProdotto" placeholder="es: ABC123" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Tipo Filtro Data</label>
+                            <select id="filterDataTipo" onchange="toggleDateFields()" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                                <option value="">Nessun filtro data</option>
+                                <option value="esatta">Data esatta</option>
+                                <option value="prima">Prima di</option>
+                                <option value="dopo">Dopo</option>
+                                <option value="intervallo">Intervallo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="dateFieldsContainer" style="display:none;margin-bottom:15px;">
+                        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;">
+                            <div id="dataField1Container">
+                                <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;" id="dataField1Label">Data</label>
+                                <input type="date" id="filterData1" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                            </div>
+                            <div id="dataField2Container" style="display:none;">
+                                <label style="display:block;font-size:11px;color:#858585;margin-bottom:5px;">Data Fine</label>
+                                <input type="date" id="filterData2" style="width:100%;background:#1e1e1e;border:1px solid #3e3e42;color:#d4d4d4;padding:8px;border-radius:4px;font-size:12px;">
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <button class="btn btn-small btn-danger" onclick="clearFilters()">Pulisci Filtri</button>
+                        <span id="filterResultCount" style="color:#858585;font-size:12px;"></span>
+                    </div>
+                </div>
+
+                <div class="toolbar">
+                    <button class="btn btn-small" onclick="selectAll()">Seleziona Tutti</button>
+                    <button class="btn btn-small" onclick="deselectAll()">Deseleziona Tutti</button>
+                    <button class="btn btn-small btn-success" id="downloadSelectedSingleBtn" onclick="downloadSelectedSingle()" disabled>
+                        📥 Scarica Selezionati
+                    </button>
+                    <button class="btn btn-small btn-success" id="downloadSelectedBtn" onclick="downloadSelected()" disabled>
+                        📥 Scarica Selezionati (ZIP)
+                    </button>
+                    <div class="selection-info" id="selectionInfo">Nessun tracciato selezionato</div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table id="documentsTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" class="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                                </th>
+                                <th>Codice Compagnia</th>
+                                <th>Numero Contratto</th>
+                                <th>Progressivo Contratto</th>
+                                <th>Codice Prodotto</th>
+                                <th>Numero Documento</th>
+                                <th>Tipo Documento</th>
+                                <th>Data Riferimento</th>
+                                <th>Blocchi Trovati</th>
+                                <th>Righe Totali</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="analysisModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">Analisi Tracciato</div>
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="tabs" id="tabs"></div>
+                <div id="tabsContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load modular JavaScript -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
